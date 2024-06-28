@@ -110,17 +110,17 @@ class Shapes3dDataset(data.Dataset):
         data = {}
 
         for field_name, field in self.fields.items():
-            try:
-                field_data = field.load(model_path, idx, c_idx)
-            except Exception:
-                if self.no_except:
-                    logger.warn(
-                        'Error occured when loading field %s of model %s'
-                        % (field_name, model)
-                    )
-                    return None
-                else:
-                    raise
+            # try:
+            field_data = field.load(model_path, idx, c_idx)
+            # except Exception:
+            #     if self.no_except:
+            #         logger.warn(
+            #             'Error occured when loading field %s of model %s'
+            #             % (field_name, model)
+            #         )
+            #         return None
+            #     else:
+            #         raise
 
             if isinstance(field_data, dict):
                 for k, v in field_data.items():

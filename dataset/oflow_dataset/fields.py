@@ -152,6 +152,7 @@ class PointsSubseqField(Field):
             start_idx (int): id of sequence start
         """
         folder = os.path.join(model_path, self.folder_name)
+        # print(folder)
         # files = glob.glob(os.path.join(folder, "*.npz"))
         files = [
             os.path.join(folder, f)
@@ -160,7 +161,7 @@ class PointsSubseqField(Field):
         ]
         files.sort()
         files = files[start_idx : start_idx + self.seq_len]
-
+        # print(files)
         return files
 
     def load_all_steps(self, files, points_dict, loc0, scale0):

@@ -46,14 +46,14 @@ dataset:
 
     # path: resource/data/Humans_multi
     # path: /tmp/leijh/Humans_multi
-    path: resource/data/Humans
+    path: /home/chang/Videos/motion_dt4d_ult/
 
     dataset: Humans
     input_type: pcl_seq
-    classes: ["D-FAUST"]
+    classes: ["data_processed_cadex"]
     train_split: train
     val_split: val
-    test_split: test
+    test_split: test_us
     dim: 3
     n_training_points: 512
     points_unpackbits: true

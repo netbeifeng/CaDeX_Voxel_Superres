@@ -108,17 +108,17 @@ class HumansDataset(data.Dataset):
         debug_info = ""
         for field_name, field in self.fields.items():
             _f_start_t = time.time()
-            try:
-                field_data = field.load(model_path, idx, c_idx, start_idx)
-                debug_info += "[{} l{:.2f}".format(field_name, time.time() - _f_start_t)
-            except Exception:
-                if self.no_except:
-                    logging.warn(
-                        "Error occured when loading field %s of model %s" % (field_name, model)
-                    )
-                    return None
-                else:
-                    raise
+            # try:
+            field_data = field.load(model_path, idx, c_idx, start_idx)
+            debug_info += "[{} l{:.2f}".format(field_name, time.time() - _f_start_t)
+            # except Exception:
+            #     if self.no_except:
+            #         logging.warn(
+            #             "Error occured when loading field %s of model %s" % (field_name, model)
+            #         )
+            #         return None
+            #     else:
+            #         raise
 
             if isinstance(field_data, dict):
                 for k, v in field_data.items():

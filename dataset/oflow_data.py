@@ -272,28 +272,39 @@ def get_inputs_field(mode, cfg):
 
     if input_type is None:
         inputs_field = None
+    elif input_type == "dino_seq":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+            ]
+        )
+        inputs_field = oflow_dataset.DinoSubseqField(
+            cfg["dataset"]["oflow_config"]["img_seq_folder"],
+            transform,
+            seq_len=seq_len,
+        )
     elif input_type == "img_seq":
-        if mode == "train" and cfg["dataset"]["oflow_config"]["img_augment"]:
-            resize_op = transforms.RandomResizedCrop(
-                cfg["dataset"]["oflow_config"]["img_size"], (0.75, 1.0), (1.0, 1.0)
-            )
-        else:
-            resize_op = transforms.Resize((cfg["dataset"]["oflow_config"]["img_size"]))
+        # if mode == "train" and cfg["dataset"]["oflow_config"]["img_augment"]:
+        #     resize_op = transforms.RandomResizedCrop(
+        #         cfg["dataset"]["oflow_config"]["img_size"], (0.75, 1.0), (1.0, 1.0)
+        #     )
+        # else:
+        #     resize_op = transforms.Resize((cfg["dataset"]["oflow_config"]["img_size"]))
 
         transform = transforms.Compose(
             [
-                resize_op,
+                # resize_op,
                 transforms.ToTensor(),
             ]
         )
 
-        if mode == "train":
-            random_view = True
-        else:
-            random_view = False
+        # if mode == "train":
+        #     random_view = True
+        # else:
+        random_view = False
 
         inputs_field = oflow_dataset.ImageSubseqField(
-            cfg["dataset"]["oflow_config"]["img_seq_folder"], transform, random_view=random_view
+            cfg["dataset"]["oflow_config"]["img_seq_folder"], transform, random_view=random_view, extension="png"
         )
     elif input_type == "pcl_seq":
         connected_samples = cfg["dataset"]["oflow_config"]["input_pointcloud_corresponding"]
@@ -321,6 +332,26 @@ def get_inputs_field(mode, cfg):
             transform,
             seq_len=seq_len,
             use_multi_files=training_multi_files,
+        )
+    elif input_type == "voxel_seq":    
+        transform = transforms.Compose(
+            [
+                oflow_dataset.SubsamplePointcloudSeq(
+                    2048,
+                    connected_samples=False,
+                ),
+                oflow_dataset.VoxelSeq(
+                    cfg["dataset"]["oflow_config"]["voxel_res"],
+                    cfg["dataset"]["oflow_config"]["xyz_range"],
+                    cfg["dataset"]["oflow_config"]["xyz_padding"],
+                )
+            ]
+        )
+        inputs_field = oflow_dataset.PointCloudSubseqField(
+            cfg["dataset"]["oflow_config"]["pointcloud_seq_folder"],
+            transform,
+            seq_len=seq_len,
+            use_multi_files=False,
         )
     elif input_type == "end_pointclouds":
         transform = oflow_dataset.SubsamplePointcloudSeq(

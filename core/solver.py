@@ -116,6 +116,8 @@ class Solver(object):
                 batch_total_num = len(self.dataloader_dict[mode])
                 self.batch_in_epoch_count = 0
                 for batch in iter(self.dataloader_dict[mode]):
+                    
+
                     self.batch_in_epoch_count += 1
                     self.batch_count += 1
                     self.viz_flag = self.viz_state(mode)

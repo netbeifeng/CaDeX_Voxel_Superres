@@ -1,12 +1,13 @@
-method: CaDeX-PF
-gpu: 0
-modes: ["test"]
-
+# cdc-v2.10
+method: CaDeX-PF-DFAU
+gpu: 0,1
+modes: ["train", "val"]
+resume: 223_latest
 model:
-  model_name: cadex_dfaust
+  model_name: cadex_dfaust_voxel
 
   loss_recon: true
-  loss_corr: true
+  loss_corr: false
 
   compress_cdc: true # the cdc is compressed by a sigmoid
 
@@ -31,27 +32,32 @@ model:
     block_normalize: True
     normalization: False
 
-
 dataset:
+  pin_mem: False
   dataset_name: oflow_data
-  dataset_proportion: [1.0]
-  num_workers: 4
-  n_query_sample_eval: 100000
-  n_training_frames: 8
+  dataset_proportion: [1.0, 1.0] #  [0.1, 0.1]
+  num_workers: 16
+  n_query_sample_eval: 10000
+  n_training_frames: 5
   oflow_config:
+    xyz_range: [-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]
+    xyz_padding: 0.1
+    voxel_res: 32
     # custom
     training_all_steps: false
-    training_multi_files: false
+    training_multi_files: false # for boosting disk read, only works after downloading our multi-file divided dataset
 
-    path: resource/data/Humans
+    # path: resource/data/Humans_multi
     # path: /tmp/leijh/Humans_multi
+    path: /home/chang/Videos/motion_dt4d_ult/
 
     dataset: Humans
-    input_type: pcl_seq
-    classes: ["D-FAUST"]
+    input_type: voxel_seq
+    # input_type: pcl_seq
+    classes: ["data_processed_cadex"]
     train_split: train
     val_split: val
-    test_split: test_new_individual
+    test_split: test_us
     dim: 3
     n_training_points: 512
     points_unpackbits: true
@@ -64,7 +70,7 @@ dataset:
     img_with_camera: false
     img_augment: false
     length_sequence: 17
-    offset_sequence: 15
+    offset_sequence: 0
     n_files_per_sequence: -1
     points_file: points.npz
     mesh_seq_folder: mesh_seq
@@ -74,36 +80,37 @@ dataset:
     generation_interpolate: false
 
 training:
+  grad_clip: 4.0
   optim:
     all:
       lr: 0.0001
-      decay_schedule: 200
-      decay_factor: 0.5
+      decay_schedule: [200, 225, 250]
+      decay_factor: [0.3, 0.3, 0.3]
       lr_min: 0.00000001
 
-  total_epoch: 1
-  batch_size: 48
-  initialize_network_file: ["./resource/checkpoints/dfaust/dfaust_w_pf.pt"]
-  initialize_network_name: ["all"]
-
+  total_epoch: 200000
+  batch_size: 22
+  # initialize_network_file: ["/home/chang/Videos/CaDeX_Voxel_Superres/log/cadex_dfaust_w_pf/checkpoint/207_latest.pt"]
+  # initialize_network_name: ["all"]
 evaluation:
-  eval_every_epoch: 1
+  eval_every_epoch: 5
   iou_threshold: 0.3
-  batch_size: 1
+  batch_size: 4
   project_to_final_mesh: false
 
 logging:
-  log_dir: dfaust_test/test_cadex_dfaust_w_pf_unseen
+  log_dir: cadex_dfaust_w_pf
   loggers: ["mesh", "image", "hist", "video", "xls"]
-  viz_training_batch_interval: 400 # 20
-  viz_nontrain_batch_interval: 100
-  viz_epoch_interval: 1
-  checkpoint_epoch: 1
-  mesh_viz_interval: 3
+  viz_training_batch_interval: 99999999999999 # 20
+  viz_nontrain_batch_interval: 99999999999999
+  viz_epoch_interval: 99999999999999
+  checkpoint_epoch: 20 #99
+  mesh_viz_interval: 99999999999999
 
   model_select_metric: iou
   model_select_larger: true
 
 generation:
   occ_if_meshing_cfg:
-    batch_pts: 30000
+    batch_pts: 8000
+    simplify_nfaces: 5000

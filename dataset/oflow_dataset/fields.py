@@ -376,13 +376,16 @@ class ImageSubseqField(Field):
         """
         idx_img_seq = self.get_img_seq_idx()
         folder = os.path.join(model_path, self.folder_name)
-        folder = os.path.join(folder, "%03d" % idx_img_seq)
+        # folder = os.path.join(folder, "%03d" % idx_img_seq)
+        # print(folder)
+        # raise
         files = glob.glob(os.path.join(folder, "*.%s" % self.extension))
         files.sort()
         files = files[start_idx : start_idx + self.seq_len]
         if self.only_end_points:
             files = [files[0], files[-1]]
-
+        # print(files)
+        # raise
         return files
 
     def load(self, model_path, idx, c_idx=None, start_idx=0, **kwargs):
@@ -401,13 +404,120 @@ class ImageSubseqField(Field):
             if self.transform is not None:
                 image = self.transform(image)
             imgs.append(image)
-
+        
+        # if self.seq_len > 1:
+        #     time = np.array(time_step / (self.seq_len - 1), dtype=np.float32)
+        # else:
+        #     time = np.array([1], dtype=np.float32)
         data = {
             None: torch.stack(imgs),
+            "time": np.array([i / (self.seq_len - 1) for i in range(self.seq_len)], dtype=np.float32), # [0/16, 1/16, 2/16, ..., 16/16]
         }
 
         return data
 
+
+class DinoSubseqField(Field):
+    """Point cloud subsequence field class.
+
+    Args:
+        folder_name (str): points folder name
+        transform (transform): transform
+        seq_len (int): length of sequence
+        only_end_points (bool): whether to only return end points
+        scale_pointcloud (bool): whether to scale the point cloud
+            w.r.t. the first point cloud of the sequence
+    """
+
+    def __init__(
+        self,
+        folder_name,
+        transform=None,
+        seq_len=17,
+    ):
+        self.folder_name = folder_name
+        self.transform = transform
+        self.seq_len = seq_len
+
+    def load_files(self, model_path, start_idx):
+        """Loads the model files.
+
+        Args:
+            model_path (str): path to model
+            start_idx (int): id of sequence start
+        """
+        folder = os.path.join(model_path, self.folder_name)
+        # print(folder)
+        # files = glob.glob(os.path.join(folder, "*.npz"))
+        files = [
+            os.path.join(folder, f)
+            for f in os.listdir(folder)
+            if f.endswith(".png") and "_" not in f
+        ]
+        files.sort()
+        # print(files)
+        # raise
+        files = files[start_idx : start_idx + self.seq_len]
+
+        return files
+
+    def load_single_file(self, file_path):
+        """Loads a single file.
+
+        Args:
+            file_path (str): file path
+        """
+        # pointcloud_dict = np.load(file_path)
+        
+        # pointcloud_dict = self.load_np(file_path)
+        # points = pointcloud_dict["points"].astype(np.float32)
+        # loc = pointcloud_dict["loc"].astype(np.float32)
+        # scale = pointcloud_dict["scale"].astype(np.float32)
+        image = Image.open(file_path)
+        img = np.array(image)
+        img = img.transpose(2, 0, 1)
+        return img
+
+    def get_time_values(self):
+        """Returns the time values."""
+        if self.seq_len > 1:
+            time = np.array([i / (self.seq_len - 1) for i in range(self.seq_len)], dtype=np.float32)
+        else:
+            time = np.array([1]).astype(np.float32)
+        return time
+
+    def load(self, model_path, idx, c_idx=None, start_idx=0, **kwargs):
+        """Loads the point cloud sequence field.
+
+        Args:
+            model_path (str): path to model
+            idx (int): ID of data point
+            c_idx (int): index of category
+            start_idx (int): id of sequence start
+        """
+        pc_seq = []
+
+        # Get file paths
+        files = self.load_files(model_path, start_idx)
+        # Load first pcl file
+        # _, loc0, scale0 = self.load_single_file(files[0])
+        for f in files:
+            img = self.load_single_file(f)
+            # Transform mesh to loc0 / scale0
+            pc_seq.append(img)
+
+        data = {
+            None: torch.from_numpy(np.stack(pc_seq)),
+            "time": self.get_time_values(),
+        }
+
+        # if self.transform is not None:
+        #     data = self.transform(data)
+        
+        # print(data[None].shape)
+        # raise
+        
+        return data
 
 class PointCloudSubseqField(Field):
     """Point cloud subsequence field class.

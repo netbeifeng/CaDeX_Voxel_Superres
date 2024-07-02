@@ -134,6 +134,76 @@ class SubsamplePoints(object):
             )
         return data_out
 
+import torch
+from torch_cluster import fps
+
+class VoxelSeq(object):
+    
+    def __init__(self, voxel_res, xyz_range, xyz_padding):
+        self.res = voxel_res
+        self.xyz_range = np.array(xyz_range)
+        self.xyz_padding = xyz_padding
+        self.size = (self.xyz_range[3:] - self.xyz_range[:3]) / self.res
+        self.centers = np.zeros((self.res, self.res, self.res, 3), dtype=np.float32)
+        grid_indices = np.indices((self.res, self.res, self.res)).transpose(1, 2, 3, 0)
+        self.centers = self.xyz_range[:3] + (grid_indices + 0.5) * self.size
+        self.sampling = 512
+    def __call__(self, data):
+        # print("VoxelSeq")
+        # print(data.keys())
+        points = data[None]
+        # print(points.shape, data['time'])
+        # print(self.get_voxel_grid(points).shape)
+        # raise
+        data_out = data.copy()
+        data_out[None] = self.get_voxel_grid(points)
+        data_out["centers"] = self.get_active_voxel_centers(data_out[None])
+        return data_out
+    
+    def get_voxel_grid(self, surface):
+        B, N, _ = surface.shape
+        surface = torch.from_numpy(surface)
+        indices = ((surface - self.xyz_range[:3]) / self.size).long()
+        indices = torch.clamp(indices, min=0, max=self.res - 1) # [B, N, 3]
+        voxel_grid = torch.zeros((B, 1, self.res, self.res, self.res), dtype=torch.int64)
+
+        increment = torch.ones((B, N), dtype=torch.int64)
+        flat_indices = indices[:, :, 0] * self.res**2 + indices[:, :, 1] * self.res + indices[:, :, 2]
+        # point_to_voxel = flat_indices.view(B, -1)
+        voxel_grid.view(B, -1).scatter_add_(1, flat_indices.view(B, -1), increment)
+        voxel_grid = voxel_grid.view(B, 1, self.res, self.res, self.res)
+        voxel_grid = (voxel_grid > 0).float()
+        return voxel_grid
+    
+    def get_active_voxel_centers(self, voxel_grid):
+        B, _, D, H, W = voxel_grid.shape
+
+        # List to hold centers for each batch
+        all_centers = []
+
+        for b in range(B):
+            active_indices = (voxel_grid[b].squeeze(0)).nonzero(as_tuple=False)
+            # print(active_indices.shape)
+            # ....
+            # get all centers first apply fps to get sampled points
+            all_active_centers = self.centers[
+                active_indices[:, 0], 
+                active_indices[:, 1], 
+                active_indices[:, 2]
+            ].reshape(-1, 3)
+            all_active_centers = torch.from_numpy(all_active_centers).to(voxel_grid.device)
+            
+            if active_indices.shape[0] < self.sampling:
+                sampled_indices = torch.randint(0, active_indices.shape[0], (self.sampling,), dtype=torch.long)
+            else:
+                sampled_indices = fps(all_active_centers, ratio=self.sampling/active_indices.shape[0])
+                
+            sampled_centers = all_active_centers[sampled_indices]
+            all_centers.append(sampled_centers)
+            
+        active_centers = torch.stack(all_centers, dim=0).float().to(voxel_grid.device)
+
+        return active_centers
 
 class SubsamplePointcloudSeq(object):
     """Point cloud sequence subsampling transformation class.

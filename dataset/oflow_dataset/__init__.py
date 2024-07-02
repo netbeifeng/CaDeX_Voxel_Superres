@@ -5,6 +5,7 @@ from .fields import (
     CategoryField,
     PointsSubseqField,
     ImageSubseqField,
+    DinoSubseqField,
     PointCloudSubseqField,
     MeshSubseqField,
 )
@@ -16,6 +17,7 @@ from .transforms import (
     # Temporal transforms
     SubsamplePointsSeq,
     SubsamplePointcloudSeq,
+    VoxelSeq
 )
 
 
